@@ -96,8 +96,14 @@ database:
    - 返回表信息，包括：
      - 表名和注释
      - 列信息（名称、类型、注释、是否可为空、默认值）
-4. `prompt_test`: 测试提示处理器
-5. `resource_test`: 测试资源处理器
+4. `execute_sql`: 执行 SQL 查询
+   - 参数：
+     - `query`: 要执行的 SQL 查询
+   - 返回：
+     - 对于 SELECT 查询：结果数组
+     - 对于其他查询：受影响的行数
+5. `prompt_test`: 测试提示处理器
+6. `resource_test`: 测试资源处理器
 
 ## 许可证
 

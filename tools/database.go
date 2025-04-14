@@ -32,6 +32,10 @@ func (t *DatabaseTool) GetTables() ([]models.TableInfo, error) {
 				   table_comment as table_comment
 			FROM information_schema.tables 
 			WHERE table_schema = DATABASE()
+			AND table_type = 'BASE TABLE'
+			AND table_name NOT IN (
+				'mysql', 'information_schema', 'performance_schema', 'sys'
+			)
 		`).Scan(&tables).Error
 	case "postgres":
 		err = t.db.Raw(`
@@ -147,6 +151,9 @@ func (t *DatabaseTool) GetTableDetail(tableName string) (*models.TableDetail, er
 			FROM information_schema.columns
 			WHERE table_schema = DATABASE()
 			AND table_name = ?
+			AND table_name NOT IN (
+				'mysql', 'information_schema', 'performance_schema', 'sys'
+			)
 			ORDER BY ordinal_position
 		`, tableName).Scan(&columns).Error
 	case "postgres":
@@ -203,4 +210,25 @@ func (t *DatabaseTool) GetTableDetail(tableName string) (*models.TableDetail, er
 
 	tableDetail.Columns = columns
 	return &tableDetail, nil
+}
+
+// ExecuteSQL executes a SQL query and returns the results
+func (t *DatabaseTool) ExecuteSQL(query string) (interface{}, error) {
+	// First try to execute as a query (SELECT)
+	var result []map[string]interface{}
+	err := t.db.Raw(query).Scan(&result).Error
+	if err == nil {
+		return result, nil
+	}
+
+	// If it's not a SELECT query, try to execute as an update/insert/delete
+	execResult := t.db.Exec(query)
+	if execResult.Error != nil {
+		return nil, execResult.Error
+	}
+
+	// Return the number of rows affected
+	return map[string]interface{}{
+		"rows_affected": execResult.RowsAffected,
+	}, nil
 }

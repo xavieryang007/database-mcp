@@ -96,8 +96,14 @@ The service provides the following MCP tools:
    - Returns table information including:
      - Table name and comment
      - Column information (name, type, comment, nullable, default value)
-4. `prompt_test`: A test prompt handler
-5. `resource_test`: A test resource handler
+4. `execute_sql`: Execute a SQL query
+   - Arguments:
+     - `query`: The SQL query to execute
+   - Returns:
+     - For SELECT queries: An array of results
+     - For other queries: The number of rows affected
+5. `prompt_test`: A test prompt handler
+6. `resource_test`: A test resource handler
 
 ## License
 

@@ -3,6 +3,7 @@ package main
 import (
 	"database-mcp/config"
 	"database-mcp/tools"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -37,6 +38,11 @@ type TableDetailArgs struct {
 	TableName string `json:"table_name" jsonschema:"required,description=The name of the table to get details for"`
 }
 
+// SQLQueryArgs represents arguments for executing SQL queries
+type SQLQueryArgs struct {
+	Query string `json:"query"`
+}
+
 func NewDatabaseMCP() (*DatabaseMCP, error) {
 	// Load configuration
 	dbConfig, err := config.LoadConfig()
@@ -62,22 +68,23 @@ func NewDatabaseMCP() (*DatabaseMCP, error) {
 func (m *DatabaseMCP) registerTools() error {
 	// Initialize database tool
 	dbTool := tools.NewDatabaseTool(m.db)
-
-	// Register hello tool
-	err := m.server.RegisterTool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (*mcp.ToolResponse, error) {
-		return mcp.NewToolResponse(mcp.NewTextContent(fmt.Sprintf("Hello, %s!", arguments.Submitter))), nil
-	})
-	if err != nil {
-		return err
-	}
-
+	var err error
 	// Register get tables tool
 	err = m.server.RegisterTool("get_tables", "Get all tables in the database", func(arguments struct{}) (*mcp.ToolResponse, error) {
 		tables, err := dbTool.GetTables()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tables: %v", err)
 		}
-		return mcp.NewToolResponse(mcp.NewJSONContent(tables)), nil
+		jsonData, err := json.Marshal(tables)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal tables: %v", err)
+		}
+		return mcp.NewToolResponse(&mcp.Content{
+			Type: "application/json",
+			TextContent: &mcp.TextContent{
+				Text: string(jsonData),
+			},
+		}), nil
 	})
 	if err != nil {
 		return err
@@ -89,37 +96,38 @@ func (m *DatabaseMCP) registerTools() error {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get table detail: %v", err)
 		}
-		return mcp.NewToolResponse(mcp.NewJSONContent(detail)), nil
+		jsonData, err := json.Marshal(detail)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal detail: %v", err)
+		}
+
+		return mcp.NewToolResponse(&mcp.Content{
+			Type: "application/json",
+			TextContent: &mcp.TextContent{
+				Text: string(jsonData),
+			},
+		}), nil
 	})
 	if err != nil {
 		return err
 	}
 
-	// Register prompt test
-	err = m.server.RegisterPrompt("prompt_test", "This is a test prompt", func(arguments Content) (*mcp.PromptResponse, error) {
-		return mcp.NewPromptResponse("description", mcp.NewPromptMessage(
-			mcp.NewTextContent(fmt.Sprintf("Hello, %s!", arguments.Title)),
-			mcp.RoleUser,
-		)), nil
-	})
-	if err != nil {
-		return err
-	}
+	// Register execute_sql tool
+	err = m.server.RegisterTool("execute_sql", "Execute a SQL query", func(arguments SQLQueryArgs) (*mcp.ToolResponse, error) {
+		result, err := dbTool.ExecuteSQL(arguments.Query)
+		if err != nil {
+			return nil, fmt.Errorf("failed to execute SQL: %v", err)
+		}
+		// Convert result to string for text content
+		resultStr := fmt.Sprintf("%v", result)
 
-	// Register test resource
-	err = m.server.RegisterResource(
-		"test://resource",
-		"resource_test",
-		"This is a test resource",
-		"application/json",
-		func() (*mcp.ResourceResponse, error) {
-			return mcp.NewResourceResponse(mcp.NewTextEmbeddedResource(
-				"test://resource",
-				"This is a test resource",
-				"application/json",
-			)), nil
-		},
-	)
+		return mcp.NewToolResponse(&mcp.Content{
+			Type: "application/json",
+			TextContent: &mcp.TextContent{
+				Text: resultStr,
+			},
+		}), nil
+	})
 	if err != nil {
 		return err
 	}

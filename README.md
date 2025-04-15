@@ -83,27 +83,35 @@ Available command line arguments:
    - Start MCP server
    - Register available tools and resources
 
+## MCP Configuration
+
+To use the MCP service, configure the MCP endpoint in your MCP client:
+
+```
+http://127.0.0.1:8080/sse
+```
+
+This will connect your MCP client to the local service running on port 8080.
+
 ## MCP Tools
 
 The service provides the following MCP tools:
 
-1. `hello`: A simple greeting tool
-2. `get_tables`: Get all tables in the database
+1. `get_tables`: Get all tables in the database
    - Returns a list of tables with their names and comments
-3. `get_table_detail`: Get detailed information about a specific table
+2. `get_table_detail`: Get detailed information about a specific table
    - Arguments:
      - `table_name`: The name of the table to get details for
    - Returns table information including:
      - Table name and comment
      - Column information (name, type, comment, nullable, default value)
-4. `execute_sql`: Execute a SQL query
+3. `execute_sql`: Execute a SQL query
    - Arguments:
      - `query`: The SQL query to execute
    - Returns:
      - For SELECT queries: An array of results
      - For other queries: The number of rows affected
-5. `prompt_test`: A test prompt handler
-6. `resource_test`: A test resource handler
+
 
 ## License
 

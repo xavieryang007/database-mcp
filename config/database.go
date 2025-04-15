@@ -24,6 +24,8 @@ type DatabaseConfig struct {
 	Database string `json:"database"` // database name
 	SSLMode  string `json:"ssl_mode"` // for postgres
 	File     string `json:"file"`     // for sqlite
+	Mode     string `json:"mode"`     // server mode (stdio or http)
+	Addr     string `json:"addr"`     // server mode (stdio or http)
 }
 
 // LoadConfig loads configuration from file and command line
@@ -38,6 +40,8 @@ func LoadConfig() (*DatabaseConfig, error) {
 	dbName := flag.String("db-name", "", "Database name")
 	dbSSLMode := flag.String("db-ssl-mode", "", "Database SSL mode (for postgres)")
 	dbFile := flag.String("db-file", "", "Database file (for sqlite)")
+	mode := flag.String("mode", "stdio", "Server mode (stdio or http)")
+	addr := flag.String("addr", ":8080", "http server listen address")
 
 	flag.Parse()
 
@@ -55,6 +59,7 @@ func LoadConfig() (*DatabaseConfig, error) {
 	v.SetDefault("database.database", "mydb")
 	v.SetDefault("database.ssl_mode", "disable")
 	v.SetDefault("database.file", "database.db")
+	v.SetDefault("database.mode", "stdio")
 
 	// Read config file
 	if err := v.ReadInConfig(); err != nil {
@@ -88,7 +93,13 @@ func LoadConfig() (*DatabaseConfig, error) {
 	if *dbFile != "" {
 		v.Set("database.file", *dbFile)
 	}
+	if *mode != "" {
+		v.Set("database.mode", *mode)
+	}
 
+	if *addr != "" {
+		v.Set("database.addr", *addr)
+	}
 	// Create config struct
 	config := &DatabaseConfig{
 		Type:     v.GetString("database.type"),
@@ -99,6 +110,8 @@ func LoadConfig() (*DatabaseConfig, error) {
 		Database: v.GetString("database.database"),
 		SSLMode:  v.GetString("database.ssl_mode"),
 		File:     v.GetString("database.file"),
+		Mode:     v.GetString("database.mode"),
+		Addr:     v.GetString("database.addr"),
 	}
 
 	return config, nil

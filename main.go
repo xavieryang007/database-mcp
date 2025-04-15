@@ -1,24 +1,22 @@
 package main
 
 import (
+	"context"
 	"database-mcp/config"
 	"database-mcp/tools"
 	"encoding/json"
 	"fmt"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
-
-	mcp "github.com/metoro-io/mcp-golang"
-	"github.com/metoro-io/mcp-golang/transport/stdio"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 	"gorm.io/gorm"
+	"log"
 )
 
 // DatabaseMCP represents our MCP service with database capabilities
 type DatabaseMCP struct {
-	db     *gorm.DB
-	server *mcp.Server
+	db       *gorm.DB
+	server   *server.MCPServer
+	dbConfig *config.DatabaseConfig
 }
 
 // Content represents the content structure for our tools
@@ -40,16 +38,14 @@ type TableDetailArgs struct {
 
 // SQLQueryArgs represents arguments for executing SQL queries
 type SQLQueryArgs struct {
-	Query string `json:"query"`
+	Query string `json:"query" jsonschema:"required,description=Execute SQL statements"`
 }
 
-func NewDatabaseMCP() (*DatabaseMCP, error) {
-	// Load configuration
-	dbConfig, err := config.LoadConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load configuration: %v", err)
-	}
+type DatabasesArgs struct {
+	Databases string `json:"databases" jsonschema:"required,description=Name of the database to be operated on"`
+}
 
+func NewDatabaseMCP(dbConfig *config.DatabaseConfig) (*DatabaseMCP, error) {
 	// Initialize database
 	db, err := config.NewDatabase(dbConfig)
 	if err != nil {
@@ -57,20 +53,28 @@ func NewDatabaseMCP() (*DatabaseMCP, error) {
 	}
 
 	// Initialize MCP server
-	server := mcp.NewServer(stdio.NewStdioServerTransport())
+	s := server.NewMCPServer(
+		"database-mcp",
+		"0.0.1",
+	)
 
 	return &DatabaseMCP{
-		db:     db,
-		server: server,
+		db:       db,
+		server:   s,
+		dbConfig: dbConfig,
 	}, nil
 }
 
 func (m *DatabaseMCP) registerTools() error {
 	// Initialize database tool
 	dbTool := tools.NewDatabaseTool(m.db)
-	var err error
+
 	// Register get tables tool
-	err = m.server.RegisterTool("get_tables", "Get all tables in the database", func(arguments struct{}) (*mcp.ToolResponse, error) {
+	getTablesTool := mcp.NewTool("get_tables",
+		mcp.WithDescription("Get all tables in the database"),
+	)
+
+	m.server.AddTool(getTablesTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		tables, err := dbTool.GetTables()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tables: %v", err)
@@ -79,20 +83,30 @@ func (m *DatabaseMCP) registerTools() error {
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal tables: %v", err)
 		}
-		return mcp.NewToolResponse(&mcp.Content{
-			Type: "application/json",
-			TextContent: &mcp.TextContent{
-				Text: string(jsonData),
+
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				mcp.TextContent{
+					Type: "application/json",
+					Text: string(jsonData),
+				},
 			},
-		}), nil
+			IsError: false,
+		}, nil
 	})
-	if err != nil {
-		return err
-	}
 
 	// Register get table detail tool
-	err = m.server.RegisterTool("get_table_detail", "Get detailed information about a specific table", func(arguments TableDetailArgs) (*mcp.ToolResponse, error) {
-		detail, err := dbTool.GetTableDetail(arguments.TableName)
+	getTableDetailTool := mcp.NewTool("get_table_detail",
+		mcp.WithDescription("Get detailed information about a specific table"),
+		mcp.WithString("table_name",
+			mcp.Required(),
+			mcp.Description("The name of the table to get details for"),
+		),
+	)
+
+	m.server.AddTool(getTableDetailTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		tableName := request.Params.Arguments["table_name"].(string)
+		detail, err := dbTool.GetTableDetail(tableName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get table detail: %v", err)
 		}
@@ -101,36 +115,47 @@ func (m *DatabaseMCP) registerTools() error {
 			return nil, fmt.Errorf("failed to marshal detail: %v", err)
 		}
 
-		return mcp.NewToolResponse(&mcp.Content{
-			Type: "application/json",
-			TextContent: &mcp.TextContent{
-				Text: string(jsonData),
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				mcp.TextContent{
+					Type: "application/json",
+					Text: string(jsonData),
+				},
 			},
-		}), nil
+			IsError: false,
+		}, nil
 	})
-	if err != nil {
-		return err
-	}
 
 	// Register execute_sql tool
-	err = m.server.RegisterTool("execute_sql", "Execute a SQL query", func(arguments SQLQueryArgs) (*mcp.ToolResponse, error) {
-		result, err := dbTool.ExecuteSQL(arguments.Query)
+	executeSQLTool := mcp.NewTool("execute_sql",
+		mcp.WithDescription("Execute a SQL query"),
+		mcp.WithString("query",
+			mcp.Required(),
+			mcp.Description("The SQL query to execute"),
+		),
+	)
+
+	m.server.AddTool(executeSQLTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		query := request.Params.Arguments["query"].(string)
+		result, err := dbTool.ExecuteSQL(query)
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute SQL: %v", err)
 		}
-		// Convert result to string for text content
-		resultStr := fmt.Sprintf("%v", result)
+		jsonData, err := json.Marshal(result)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal result: %v", err)
+		}
 
-		return mcp.NewToolResponse(&mcp.Content{
-			Type: "application/json",
-			TextContent: &mcp.TextContent{
-				Text: resultStr,
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				mcp.TextContent{
+					Type: "application/json",
+					Text: string(jsonData),
+				},
 			},
-		}), nil
+			IsError: false,
+		}, nil
 	})
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -141,26 +166,32 @@ func (m *DatabaseMCP) Start() error {
 		return fmt.Errorf("failed to register tools: %v", err)
 	}
 
-	// Start the server
-	if err := m.server.Serve(); err != nil {
-		return fmt.Errorf("failed to start server: %v", err)
+	if m.dbConfig.Mode == "http" {
+		if err := server.NewSSEServer(m.server).Start(m.dbConfig.Addr); err != nil {
+			return fmt.Errorf("failed to start server: %v", err)
+		}
+	} else {
+		// Default to stdio mode
+		if err := server.ServeStdio(m.server); err != nil {
+			return fmt.Errorf("failed to start stdio server: %v", err)
+		}
 	}
-
-	// Wait for interrupt signal
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
-
 	return nil
 }
 
 func main() {
-	mcp, err := NewDatabaseMCP()
+	// Load configuration
+	dbConfig, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	_mcp, err := NewDatabaseMCP(dbConfig)
 	if err != nil {
 		log.Fatalf("Failed to create DatabaseMCP: %v", err)
 	}
 
-	if err := mcp.Start(); err != nil {
+	if err := _mcp.Start(); err != nil {
 		log.Fatalf("Failed to start DatabaseMCP: %v", err)
 	}
 }

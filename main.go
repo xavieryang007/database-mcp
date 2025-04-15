@@ -84,15 +84,7 @@ func (m *DatabaseMCP) registerTools() error {
 			return nil, fmt.Errorf("failed to marshal tables: %v", err)
 		}
 
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				mcp.TextContent{
-					Type: "application/json",
-					Text: string(jsonData),
-				},
-			},
-			IsError: false,
-		}, nil
+		return mcp.NewToolResultText(string(jsonData)), nil
 	})
 
 	// Register get table detail tool
@@ -115,15 +107,7 @@ func (m *DatabaseMCP) registerTools() error {
 			return nil, fmt.Errorf("failed to marshal detail: %v", err)
 		}
 
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				mcp.TextContent{
-					Type: "application/json",
-					Text: string(jsonData),
-				},
-			},
-			IsError: false,
-		}, nil
+		return mcp.NewToolResultText(string(jsonData)), nil
 	})
 
 	// Register execute_sql tool
@@ -145,16 +129,8 @@ func (m *DatabaseMCP) registerTools() error {
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal result: %v", err)
 		}
-
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				mcp.TextContent{
-					Type: "application/json",
-					Text: string(jsonData),
-				},
-			},
-			IsError: false,
-		}, nil
+		
+		return mcp.NewToolResultText(string(jsonData)), nil
 	})
 
 	return nil

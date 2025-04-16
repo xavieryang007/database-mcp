@@ -74,7 +74,7 @@ database:
 
 1. 启动服务：
    ```bash
-   ./database-mcp
+   ./database-mcp --db-type=mysql --db-host=127.0.0.1 --db-port=3306 --db-user=dbuser --db-pass=passwd --db-name=dbname --db-ssl-mode=disable --mode=http
    ```
 
 2. 服务将执行以下操作：

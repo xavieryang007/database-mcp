@@ -74,7 +74,7 @@ Available command line arguments:
 
 1. Start the service:
    ```bash
-   ./database-mcp
+   ./database-mcp --db-type=mysql --db-host=127.0.0.1 --db-port=3306 --db-user=dbuser --db-pass=passwd --db-name=dbname --db-ssl-mode=disable --mode=http
    ```
 
 2. The service will:

@@ -129,7 +129,7 @@ func (m *DatabaseMCP) registerTools() error {
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal result: %v", err)
 		}
-		
+
 		return mcp.NewToolResultText(string(jsonData)), nil
 	})
 

@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -42,6 +43,34 @@ func LoadConfig() (*DatabaseConfig, error) {
 	dbFile := flag.String("db-file", "", "Database file (for sqlite)")
 	mode := flag.String("mode", "stdio", "Server mode (stdio or http)")
 	addr := flag.String("addr", ":8080", "http server listen address")
+
+	// Check if any arguments are provided
+	if len(os.Args) == 1 {
+		fmt.Println("Command Line Arguments:")
+		fmt.Println("  --config string     Path to config file (default \"config.yaml\")")
+		fmt.Println("  --db-type string    Database type (mysql, postgres, sqlite, sqlserver, clickhouse)")
+		fmt.Println("  --db-host string    Database host")
+		fmt.Println("  --db-port int       Database port")
+		fmt.Println("  --db-user string    Database username")
+		fmt.Println("  --db-pass string    Database password")
+		fmt.Println("  --db-name string    Database name")
+		fmt.Println("  --db-ssl-mode string Database SSL mode (for postgres)")
+		fmt.Println("  --db-file string    Database file (for sqlite)")
+		fmt.Println("  --mode string       Server mode (stdio or http) (default \"stdio\")")
+		fmt.Println("  --addr string       HTTP server listen address (default \":8080\")")
+		fmt.Println("\nUsage examples:")
+		fmt.Println("  Basic usage with config file:")
+		fmt.Println("    ./database-mcp -config config.yaml")
+		fmt.Println("  MySQL example:")
+		fmt.Println("    ./database-mcp -db-type mysql -db-host localhost -db-port 3306 -db-user root -db-pass password -db-name mydb")
+		fmt.Println("  PostgreSQL example:")
+		fmt.Println("    ./database-mcp -db-type postgres -db-host localhost -db-port 5432 -db-user postgres -db-pass password -db-name mydb -db-ssl-mode disable")
+		fmt.Println("  SQLite example:")
+		fmt.Println("    ./database-mcp -db-type sqlite -db-file database.db")
+		fmt.Println("  Server mode example:")
+		fmt.Println("    ./database-mcp -mode http -addr :8080")
+		os.Exit(0)
+	}
 
 	flag.Parse()
 

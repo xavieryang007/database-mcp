@@ -166,8 +166,7 @@ func NewDatabase(config *DatabaseConfig) (*gorm.DB, error) {
 			config.Username, config.Password, config.Host, config.Port, config.Database)
 		dialector = sqlserver.Open(dsn)
 	case "clickhouse":
-		dsn := fmt.Sprintf("tcp://%s:%d?database=%s&username=%s&password=%s",
-			config.Host, config.Port, config.Database, config.Username, config.Password)
+		dsn := fmt.Sprintf("clickhouse://%s:%s@%s:%d/%s?dial_timeout=10s&read_timeout=20s", config.Username, config.Password, config.Host, config.Port, config.Database)
 		dialector = clickhouse.Open(dsn)
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", config.Type)
